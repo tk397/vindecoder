@@ -1,31 +1,48 @@
 document.addEventListener('DOMContentLoaded', () => {
     const vinForm = document.getElementById('vinForm');
     const vinInput = document.getElementById('vinInput');
+    const apiKeyInput = document.getElementById('apiKey');
     const decodeButton = document.getElementById('decodeButton');
     const resultsDiv = document.getElementById('results');
     const resultsList = document.getElementById('results-list');
     const errorDiv = document.getElementById('error');
     const loadingDiv = document.getElementById('loading');
 
+    // Attempt to load API key from local storage
+    apiKeyInput.value = localStorage.getItem('vinApiKey') || '';
+
     vinForm.addEventListener('submit', (e) => {
         e.preventDefault();
+        
         const vin = vinInput.value.trim().toUpperCase();
-        
-        // Basic 17-char check. The API will do the rest of the validation.
-        if (vin.length !== 17) {
-            showError('VIN must be exactly 17 characters long.');
+        const apiKey = apiKeyInput.value.trim();
+
+        // Save the API key to local storage for convenience
+        if (apiKey) {
+            localStorage.setItem('vinApiKey', apiKey);
+        } else {
+            showError('Please enter your API-Ninjas API key.');
             return;
         }
-        
-        if (/[IOQ]/.test(vin)) {
-            showError('VIN contains invalid characters (I, O, or Q).');
-            return;
+
+        if (validateVIN(vin)) {
+            decodeVIN(vin, apiKey);
+        } else {
+            showError('Please enter a valid 17-character VIN. Letters I, O, and Q are not allowed.');
         }
-        
-        decodeVIN(vin);
     });
 
-    async function decodeVIN(vin) {
+    function validateVIN(vin) {
+        if (vin.length !== 17) {
+            return false;
+        }
+        if (/[IOQ]/.test(vin)) {
+            return false;
+        }
+        return true;
+    }
+
+    async function decodeVIN(vin, apiKey) {
         // Reset UI
         showLoading(true);
         showError(null);
@@ -33,42 +50,31 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsList.innerHTML = '';
         decodeButton.disabled = true;
 
+        const apiUrl = `https://api.api-ninjas.com/v1/vinlookup?vin=${vin}`;
+
         try {
-            // Using 'DecodeVinExtended' for the most detail possible
-            const apiUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinExtended/${vin}?format=json`;
-            
-            const response = await fetch(apiUrl);
-            if (!response.ok) {
-                throw new Error(`API request failed with status: ${response.status}`);
-            }
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'X-Api-Key': apiKey,
+                    'Content-Type': 'application/json'
+                }
+            });
 
             const data = await response.json();
-            
-            // The API returns 'Results' as an array of key/value objects
-            const results = data.Results;
 
-            // Find the 'Error Text' variable (VariableId 191)
-            // The API sends this on every request. '0' is success.
-            const errorTextItem = results.find(item => item.VariableId === 191);
-            const errorCode = errorTextItem ? errorTextItem.Value : 'Unknown';
-            
-            if (errorCode !== '0') {
-                // If the error code is not '0', find a better error message
-                const clarification = results.find(item => item.Variable === 'Additional Error Text');
-                let errorMessage = clarification && clarification.Value ? clarification.Value : `VIN decoding failed. Error: ${errorCode}.`;
-                
-                // Handle common error codes
-                if (errorCode.includes('invalid characters')) {
-                    errorMessage = 'VIN contains invalid characters (I, O, or Q).';
-                }
-                if (errorCode.includes('VIN is not 17 characters')) {
-                    errorMessage = 'VIN must be 17 characters.';
-                }
-                
-                throw new Error(errorMessage);
+            if (!response.ok) {
+                // Handle API errors (like invalid key or quota exceeded)
+                throw new Error(data.error || `API request failed with status: ${response.status}`);
             }
 
-            displayResults(results);
+            if (data.error) {
+                // Handle specific errors from the API (like VIN not found)
+                throw new Error(data.error);
+            }
+            
+            // API-Ninjas returns a single object on success, not an array
+            displayResults(data);
 
         } catch (error) {
             showError(`Error: ${error.message}`);
@@ -78,27 +84,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function displayResults(results) {
-        // Filter out items that are empty, null, "Not Applicable", or the "0" error code
-        const filteredResults = results.filter(item => 
-            item.Value && 
-            item.Value.trim() !== '' && 
-            item.VariableId !== 191 && // Hide the "Error Text: 0" success message
-            item.Value.toLowerCase() !== 'not applicable'
-        );
+    function displayResults(data) {
+        // The API returns a flat object. We can iterate over its keys.
+        const keysToShow = ['manufacturer', 'model', 'year', 'country', 'region', 'wmi'];
+        
+        let hasData = false;
+        
+        // Loop through the desired keys and create result items
+        keysToShow.forEach(key => {
+            if (data[key]) {
+                hasData = true;
+                const itemEl = document.createElement('div');
+                itemEl.classList.add('result-item');
+                // Format the key for display (e.g., 'wmi' -> 'WMI')
+                const keyDisplay = key === 'wmi' ? 'WMI' : key;
+                itemEl.innerHTML = `<strong>${keyDisplay}:</strong> <span>${data[key]}</span>`;
+                resultsList.appendChild(itemEl);
+            }
+        });
 
-        if (filteredResults.length === 0) {
-            showError("The VIN was decoded, but the NHTSA (US) database returned no specific data for this vehicle. This is common for non-US market cars.");
+        if (!hasData) {
+            showError("VIN found, but no data was returned for this vehicle.");
             return;
         }
-
-        // Display all available data
-        filteredResults.forEach(item => {
-            const itemEl = document.createElement('div');
-            itemEl.classList.add('result-item');
-            itemEl.innerHTML = `<strong>${item.Variable}:</strong> <span>${item.Value}</span>`;
-            resultsList.appendChild(itemEl);
-        });
 
         resultsDiv.classList.remove('hidden');
     }
