@@ -1,44 +1,37 @@
-# VIN Decoder Web Tool
+# Global VIN Decoder Web Tool
 
-This is a simple, serverless web tool to decode a 17-character Vehicle Identification Number (VIN). It uses the free [NHTSA vPIC API](https://vpic.nhtsa.dot.gov/api/) to fetch vehicle data and display it.
+This is a simple, serverless web tool to decode a 17-character Vehicle Identification Number (VIN).
 
-This project is built with plain HTML, CSS, and JavaScript and is designed to be deployed as a static site on platforms like **Cloudflare Pages**.
+This version has been upgraded to use the **API-Ninjas VIN Lookup API** to provide **basic global data** for vehicles from all over the world, not just the United States.
 
 ## Features
 
--   **VIN Validation**: Basic client-side check for 17 characters (excluding I, O, and Q).
--   **API Integration**: Fetches comprehensive data from the NHTSA `DecodeVinExtended` endpoint.
--   **Clean UI**: Simple, responsive interface to enter a VIN and view results.
--   **Error Handling**: Displays clear error messages from the API or for invalid input.
--   **Zero Dependencies**: No frameworks, no build step. Just static files.
+-   **Global Data**: Uses the API-Ninjas API to decode VINs from 180+ countries.
+-   **Core Details**: Returns Manufacturer, Model, Model Year, Country, and Region.
+-   **API Key Storage**: Securely saves your API key in your browser's `localStorage` so you don't have to re-paste it.
+-   **Error Handling**: Displays clear error messages from the API.
+-   **Static Site**: Built with plain HTML, CSS, and JavaScript. Perfect for **Cloudflare Pages**.
 
-## VIN Structure (Based on Wikipedia)
+## Why Not NHTSA?
 
-A VIN is a 17-character code with three main sections:
+The previous version used the free US NHTSA API. That API only contains detailed data for vehicles sold in the United States. It will fail or return minimal data for VINs from Europe, China, or other regions.
 
-1.  **WMI (World Manufacturer Identifier)**: Positions 1-3. Identifies the manufacturer.
-2.  **VDS (Vehicle Descriptor Section)**: Positions 4-9. Provides details about the vehicle, such as model and body type. Position 9 is often a check digit.
-3.  **VIS (Vehicle Identifier Section)**: Positions 10-17. The unique serial number for the vehicle. Position 10 is used to encode the model year.
+## Required Setup: API-Ninjas Key
+
+This tool **requires a free API key** to work.
+
+1.  Go to [api-ninjas.com](https://api-ninjas.com/) and sign up for a free account.
+2.  Go to your account dashboard.
+3.  Find the "VIN Lookup" API and copy your personal API key.
+4.  When you open the `index.html` page, paste this key into the "Your API Key" input field.
+
+The free plan includes **10,000 free requests per month**.
 
 ## Deployment to Cloudflare Pages
 
-This repository is ready to be deployed directly to Cloudflare Pages.
-
-### Step 1: Create a GitHub Repository
-
-1.  Create a new repository on [GitHub](https://github.com/new).
-2.  Name it `vin-decoder` (or any name you like).
-3.  Push these files (`index.html`, `style.css`, `script.js`, `README.md`) to your new repository.
-
-### Step 2: Deploy with Cloudflare Pages
-
-1.  Log in to your [Cloudflare dashboard](https://dash.cloudflare.com/).
-2.  Go to **Workers & Pages** > **Create application** > **Pages** > **Connect to Git**.
-3.  Select the GitHub repository you just created.
-4.  In the "Set up builds and deployments" section, you can leave all settings as default. Cloudflare Pages is smart enough to detect that this is a static site with no build step.
-    -   **Framework preset**: Select `None`.
-    -   **Build command**: (Leave blank)
-    -   **Build output directory**: (Leave blank or set to `/`)
-5.  Click **Save and Deploy**.
-
-That's it! Your site will be live on a `.pages.dev` subdomain in about a minute.
+1.  Push these files (`index.html`, `style.css`, `script.js`, `README.md`) to a new GitHub repository.
+2.  Log in to your [Cloudflare dashboard](https://dash.cloudflare.com/).
+3.  Go to **Workers & Pages** > **Create application** > **Pages** > **Connect to Git**.
+4.  Select the GitHub repository you just created.
+5.  In "Set up builds and deployments," select `None` for the **Framework preset**.
+6.  Click **Save and Deploy**.
