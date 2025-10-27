@@ -3,16 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIN Decoder</title>
+    <title>Global VIN Decoder</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <main>
-        <h1>VIN Decoder 🚗</h1>
-        <p>Enter a 17-character Vehicle Identification Number (VIN) to get vehicle details.</p>
+        <h1>Global VIN Decoder 🌍</h1>
+        <p>Enter a 17-character VIN and your API key to get vehicle details from around the world.</p>
         
         <form id="vinForm">
-            <input type="text" id="vinInput" placeholder="Enter VIN..." minlength="17" maxlength="17" required>
+            <div class="form-group">
+                <label for="apiKey">Your API Key from API-Ninjas</label>
+                <input type="password" id="apiKey" placeholder="Paste your free API key here" required>
+                <small>Get your free key from <a href="https://api-ninjas.com/" target="_blank">api-ninjas.com</a>. Your key is not saved.</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="vinInput">Vehicle Identification Number (VIN)</label>
+                <input type="text" id="vinInput" placeholder="Enter 17-character VIN..." minlength="17" maxlength="17" required>
+            </div>
+
             <button type="submit" id="decodeButton">Decode</button>
         </form>
         
@@ -29,7 +39,7 @@
     </main>
     
     <footer>
-        <p>Powered by the <a href="https://vpic.nhtsa.dot.gov/api/">NHTSA vPIC API</a>. Created for Cloudflare Pages.</p>
+        <p>Powered by the <a href="https://api-ninjas.com/api/vinlookup" target="_blank">API-Ninjas VIN Lookup API</a>.</p>
     </footer>
     
     <script src="script.js"></script>
