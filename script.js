@@ -11,23 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const vin = vinInput.value.trim().toUpperCase();
         
-        if (validateVIN(vin)) {
-            decodeVIN(vin);
-        } else {
-            showError('Please enter a valid 17-character VIN. Letters I, O, and Q are not allowed.');
-        }
-    });
-
-    function validateVIN(vin) {
+        // Basic 17-char check. The API will do the rest of the validation.
         if (vin.length !== 17) {
-            return false;
+            showError('VIN must be exactly 17 characters long.');
+            return;
         }
-        // Check for invalid characters (I, O, Q)
+        
         if (/[IOQ]/.test(vin)) {
-            return false;
+            showError('VIN contains invalid characters (I, O, or Q).');
+            return;
         }
-        return true;
-    }
+        
+        decodeVIN(vin);
+    });
 
     async function decodeVIN(vin) {
         // Reset UI
@@ -38,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
         decodeButton.disabled = true;
 
         try {
-            // Use the NHTSA vPIC API. 'DecodeVinExtended' provides more details.
+            // Using 'DecodeVinExtended' for the most detail possible
             const apiUrl = `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinExtended/${vin}?format=json`;
             
             const response = await fetch(apiUrl);
@@ -48,13 +44,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const data = await response.json();
             
-            // Check for errors in the response
-            const errorText = data.Results.find(item => item.Variable === 'Error Text');
-            if (errorText && errorText.Value !== '0 - VIN decoded clean.') {
-                throw new Error(errorText.Value);
+            // The API returns 'Results' as an array of key/value objects
+            const results = data.Results;
+
+            // Find the 'Error Text' variable (VariableId 191)
+            // The API sends this on every request. '0' is success.
+            const errorTextItem = results.find(item => item.VariableId === 191);
+            const errorCode = errorTextItem ? errorTextItem.Value : 'Unknown';
+            
+            if (errorCode !== '0') {
+                // If the error code is not '0', find a better error message
+                const clarification = results.find(item => item.Variable === 'Additional Error Text');
+                let errorMessage = clarification && clarification.Value ? clarification.Value : `VIN decoding failed. Error: ${errorCode}.`;
+                
+                // Handle common error codes
+                if (errorCode.includes('invalid characters')) {
+                    errorMessage = 'VIN contains invalid characters (I, O, or Q).';
+                }
+                if (errorCode.includes('VIN is not 17 characters')) {
+                    errorMessage = 'VIN must be 17 characters.';
+                }
+                
+                throw new Error(errorMessage);
             }
 
-            displayResults(data.Results);
+            displayResults(results);
 
         } catch (error) {
             showError(`Error: ${error.message}`);
@@ -65,18 +79,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function displayResults(results) {
-        // Filter out empty values and unwanted fields
-        const desiredFields = ['Make', 'Model', 'Model Year', 'Manufacturer Name', 'Vehicle Type', 'Plant Country', 'Plant City', 'Engine Cylinders', 'Engine HP', 'Fuel Type - Primary', 'Trim', 'Series'];
-        
-        const filteredResults = results
-            .filter(item => desiredFields.includes(item.Variable) && item.Value)
-            .sort((a, b) => desiredFields.indexOf(a.Variable) - desiredFields.indexOf(b.Variable));
+        // Filter out items that are empty, null, "Not Applicable", or the "0" error code
+        const filteredResults = results.filter(item => 
+            item.Value && 
+            item.Value.trim() !== '' && 
+            item.VariableId !== 191 && // Hide the "Error Text: 0" success message
+            item.Value.toLowerCase() !== 'not applicable'
+        );
 
         if (filteredResults.length === 0) {
-            showError("No valid data returned for this VIN. It may be incorrect or not in the NHTSA database.");
+            showError("The VIN was decoded, but the NHTSA (US) database returned no specific data for this vehicle. This is common for non-US market cars.");
             return;
         }
 
+        // Display all available data
         filteredResults.forEach(item => {
             const itemEl = document.createElement('div');
             itemEl.classList.add('result-item');
